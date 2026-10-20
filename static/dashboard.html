@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Item Tracking Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f4f5f7; color: #172b4d; height: 100vh; overflow: hidden;
+}
+
+/* LAYOUT — two-column (no chat panel) */
+.app { display: grid; grid-template-columns: 300px 1fr; grid-template-rows: 52px 1fr; height: 100vh; }
+
+/* UPLOAD SCREEN */
+.upload-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100vh; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff;
+}
+.upload-area { display: flex; gap: 30px; align-items: flex-start; }
+.upload-box {
+  background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.2);
+  border-radius: 16px; padding: 40px 50px; text-align: center; cursor: pointer; transition: all 0.3s;
+  min-width: 280px;
+}
+.upload-box:hover { border-color: #4fc3f7; background: rgba(255,255,255,0.08); }
+.upload-box i { font-size: 36px; color: #4fc3f7; margin-bottom: 12px; }
+.upload-box h2 { font-size: 16px; margin-bottom: 6px; }
+.upload-box p { font-size: 12px; color: #8993a4; }
+.upload-box input { display: none; }
+.upload-box.loaded { border-color: #36b37e; background: rgba(54,179,126,0.1); }
+.upload-box.loaded i { color: #36b37e; }
+.upload-status { font-size: 11px; margin-top: 8px; color: #36b37e; font-weight: 600; }
+.upload-go {
+  margin-top: 24px; padding: 12px 40px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  background: #0052CC; color: #fff; border: none; cursor: pointer; display: none;
+}
+.upload-go:hover { background: #0747A6; }
+.upload-go.visible { display: inline-block; }
+
+/* HEADER */
+.header {
+  grid-column: 1 / -1; background: #fff; border-bottom: 1px solid #dfe1e6;
+  display: flex; align-items: center; padding: 0 16px; gap: 12px;
+}
+.header h1 { font-size: 14px; font-weight: 700; color: #0052CC; }
+.header .stats { display: flex; gap: 12px; margin-left: auto; font-size: 11px; color: #8993a4; }
+.stat-badge { background: #f4f5f7; border-radius: 100px; padding: 3px 10px; font-weight: 600; }
+.stat-badge.beta { color: #00875A; }
+.stat-badge.alpha { color: #FF8B00; }
+.stat-badge.conveyor { color: #6554C0; }
+.btn-header {
+  background: none; border: 1px solid #dfe1e6; border-radius: 6px;
+  padding: 4px 10px; font-size: 11px; cursor: pointer; color: #44546f;
+}
+.btn-header:hover { background: #f4f5f7; }
+
+/* LEFT PANEL */
+.left-panel {
+  background: #fff; border-right: 1px solid #ebecf0;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.search-box { padding: 10px; border-bottom: 1px solid #ebecf0; }
+.search-box input {
+  width: 100%; padding: 7px 10px; border: 1px solid #dfe1e6;
+  border-radius: 6px; font-size: 12px; background: #f4f5f7; color: #172b4d; outline: none;
+}
+.search-box input:focus { border-color: #0052CC; }
+.filter-bar {
+  padding: 6px 10px; display: flex; gap: 4px; border-bottom: 1px solid #ebecf0; flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 3px 8px; border-radius: 100px; font-size: 10px; font-weight: 600;
+  border: 1px solid #dfe1e6; background: transparent; cursor: pointer; color: #44546f;
+}
+.filter-btn.active { background: #0052CC; color: #fff; border-color: transparent; }
+.pkg-count {
+  font-size: 10px; color: #8993a4; padding: 4px 10px;
+  border-bottom: 1px solid #ebecf0; background: #fafbfc;
+}
+.pkg-list { flex: 1; overflow-y: auto; }
+.pkg-item {
+  padding: 7px 10px; border-bottom: 1px solid #ebecf0;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+}
+.pkg-item:hover { background: #f4f5f7; }
+.pkg-item.selected { background: #e6f0ff; border-left: 3px solid #0052CC; }
+.pkg-icon {
+  width: 22px; height: 22px; border-radius: 5px; display: flex;
+  align-items: center; justify-content: center; font-size: 9px; color: #fff; flex-shrink: 0;
+}
+.pkg-icon.beta { background: #00875A; }
+.pkg-icon.alpha { background: #FF8B00; }
+.pkg-icon.conveyor { background: #6554C0; }
+.pkg-label { font-size: 11px; font-weight: 600; font-family: 'SF Mono', Consolas, monospace; }
+.pkg-meta { font-size: 9px; color: #8993a4; }
+
+/* CENTER PANEL */
+.center-panel { padding: 16px 20px; overflow-y: auto; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; color: #8993a4;
+}
+.empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+.pkg-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.pkg-title { font-size: 15px; font-weight: 700; font-family: 'SF Mono', Consolas, monospace; }
+.badge { padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 600; }
+.badge.beta { background: #e3fcef; color: #00875A; }
+.badge.alpha { background: #fff7e6; color: #FF8B00; }
+.badge.conveyor { background: #eae6ff; color: #403294; }
+.info-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.info-card {
+  background: #fff; border: 1px solid #ebecf0; border-radius: 8px;
+  padding: 8px 12px; flex: 1; min-width: 100px;
+}
+.info-label {
+  font-size: 9px; color: #8993a4; text-transform: uppercase;
+  letter-spacing: 0.05em; margin-bottom: 2px;
+}
+.info-value { font-size: 13px; font-weight: 600; font-family: 'SF Mono', Consolas, monospace; }
+
+/* TIMELINE TABLE */
+.timeline-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.timeline-table th {
+  text-align: left; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #8993a4; padding: 8px 10px;
+  border-bottom: 2px solid #dfe1e6; font-weight: 600;
+}
+.timeline-table td { padding: 9px 10px; border-bottom: 1px solid #ebecf0; vertical-align: middle; }
+.timeline-table tr:hover { background: #fafbfc; }
+.tl-num { color: #8993a4; font-size: 12px; font-weight: 600; width: 30px; }
+.tl-event-cell { display: flex; align-items: center; gap: 8px; }
+.tl-dot-inline { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.tl-dot-inline.operational { background: #36b37e; }
+.tl-dot-inline.routing { background: #0052CC; }
+.tl-event-name { font-weight: 600; color: #172b4d; font-size: 13px; }
+.tl-timestamp { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; color: #172b4d; white-space: nowrap; }
+.tl-delta-cell { font-family: 'SF Mono', Consolas, monospace; font-size: 12px; font-weight: 600; color: #00875A; white-space: nowrap; }
+.tl-type-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; text-align: center; min-width: 36px;
+}
+.tl-type-badge.operational { background: #e3fcef; color: #006644; }
+.tl-type-badge.routing { background: #deebff; color: #0052CC; }
+.tl-lines { font-size: 11px; font-weight: 600; color: #6554C0; font-family: 'SF Mono', Consolas, monospace; }
+
+/* LEGEND MODAL */
+.legend-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center;
+}
+.legend-overlay.open { display: flex; }
+.legend-modal {
+  background: #fff; border-radius: 12px; padding: 20px; max-width: 700px; width: 90%;
+  max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+.legend-modal h3 { font-size: 15px; margin-bottom: 12px; color: #0052CC; }
+.legend-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.legend-table th {
+  text-align: left; font-size: 10px; text-transform: uppercase; color: #8993a4;
+  padding: 6px 8px; border-bottom: 2px solid #dfe1e6;
+}
+.legend-table td { padding: 6px 8px; border-bottom: 1px solid #ebecf0; }
+.legend-table tr:hover { background: #fafbfc; }
+.legend-close {
+  float: right; background: none; border: none; font-size: 18px;
+  cursor: pointer; color: #8993a4; padding: 0 4px;
+}
+.legend-close:hover { color: #172b4d; }
+</style>
+</head>
+<body>
+
+<!-- UPLOAD SCREEN -->
+<div id="upload-screen" class="upload-screen">
+  <div style="text-align:center; margin-bottom: 30px;">
+    <h1 style="font-size:24px; margin-bottom:6px;">Item Tracking Dashboard</h1>
+    <p style="font-size:13px; color:#8993a4;">Upload both JSON files to start</p>
+  </div>
+  <div class="upload-area">
+    <div class="upload-box" id="box-packages" onclick="document.getElementById('file-packages').click()">
+      <i class="fa-solid fa-boxes-stacked"></i>
+      <h2>Item Data</h2>
+      <p>dashboard_data.json</p>
+      <input type="file" id="file-packages" accept=".json">
+      <div class="upload-status" id="status-packages"></div>
+    </div>
+    <div class="upload-box" id="box-mapping" onclick="document.getElementById('file-mapping').click()">
+      <i class="fa-solid fa-signs-post"></i>
+      <h2>Event Mapping</h2>
+      <p>event_mapping.json</p>
+      <input type="file" id="file-mapping" accept=".json">
+      <div class="upload-status" id="status-mapping"></div>
+    </div>
+  </div>
+  <button class="upload-go" id="btn-go" onclick="launchDashboard()">Launch Dashboard</button>
+</div>
+
+<!-- LEGEND MODAL -->
+<div class="legend-overlay" id="legend-overlay" onclick="if(event.target===this)toggleLegend()">
+  <div class="legend-modal">
+    <button class="legend-close" onclick="toggleLegend()">&times;</button>
+    <h3><i class="fa-solid fa-book"></i> Event Legend &mdash; Stage &amp; Processing Lines</h3>
+    <table class="legend-table" id="legend-table">
+      <thead><tr><th>#</th><th>Event Key</th><th>Stage</th><th>Type</th><th>Lines</th></tr></thead>
+      <tbody id="legend-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="app" style="display:none;">
+  <div class="header">
+    <i class="fa-solid fa-boxes-stacked" style="color:#0052CC;font-size:15px;"></i>
+    <h1>Item Tracking Dashboard</h1>
+    <div class="stats" id="header-stats"></div>
+    <button class="btn-header" id="btn-export-json" title="Export JSON for AI analysis"><i class="fa-solid fa-download"></i> Export JSON</button>
+    <button class="btn-header" onclick="toggleLegend()" title="Event legend"><i class="fa-solid fa-book"></i> Legend</button>
+    <button class="btn-header" onclick="location.reload()"><i class="fa-solid fa-rotate"></i> New file</button>
+  </div>
+
+  <div class="left-panel">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="&#128269; Search item label...">
+    </div>
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="beta">&#129302; Beta</button>
+      <button class="filter-btn" data-filter="alpha">&#128247; Alpha</button>
+      <button class="filter-btn" data-filter="conveyor">&#128094; Conveyor</button>
+    </div>
+    <div class="pkg-count" id="pkg-count"></div>
+    <div class="pkg-list" id="pkg-list"></div>
+  </div>
+
+  <div class="center-panel" id="center-panel">
+    <div class="empty-state">
+      <i class="fa-solid fa-box-open"></i>
+      <p>Select an item to view its timeline</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// =========================================================================
+// DATA
+// =========================================================================
+var DATA = {};
+var MAPPING = {};
+var filteredLabels = [];
+var currentFilter = 'all';
+var selectedLabel = null;
+
+// =========================================================================
+// HELPERS
+// =========================================================================
+function getSorterType(pkg) {
+  var hasRouting = pkg.events.some(function(e) { return e.type === 'routing'; });
+  if (!hasRouting) return { sorter: 'conveyor', scan: '' };
+  var isBeta = pkg.events.some(function(e) { return e.name.includes('SECONDARY'); });
+  return { sorter: 'router', scan: isBeta ? 'BETA' : 'ALPHA' };
+}
+
+function getDwell(pkg) {
+  var induct = pkg.events.find(function(e) { return e.name.includes('INDUCTED'); });
+  var completed = pkg.events.find(function(e) { return e.name.includes('COMPLETED'); });
+  if (induct && completed) return ((new Date(completed.time) - new Date(induct.time)) / 1000).toFixed(0) + 's';
+  return '-';
+}
+
+function formatDelta(ms) {
+  if (ms <= 0) return '';
+  var totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds === 0) return '';
+  var h = Math.floor(totalSeconds / 3600);
+  var m = Math.floor((totalSeconds % 3600) / 60);
+  var s = totalSeconds % 60;
+  if (h > 0 && m > 0 && s > 0) return '+' + h + 'h ' + m + 'm ' + s + 's';
+  if (h > 0 && m > 0) return '+' + h + 'h ' + m + 'm';
+  if (h > 0 && s > 0) return '+' + h + 'h 0m ' + s + 's';
+  if (h > 0) return '+' + h + 'h';
+  if (m > 0 && s > 0) return '+' + m + 'm ' + s + 's';
+  if (m > 0) return '+' + m + 'm';
+  return '+' + s + 's';
+}
+
+function getStage(eventName) {
+  if (MAPPING[eventName]) return MAPPING[eventName].stage;
+  return eventName.replace(/_time_local/g, '').replace(/_local/g, '');
+}
+
+function getLines(eventName) {
+  if (MAPPING[eventName] && MAPPING[eventName].processing_lines && MAPPING[eventName].processing_lines.length > 0)
+    return MAPPING[eventName].processing_lines.join(', ');
+  return '-';
+}
+
+// =========================================================================
+// FILE UPLOAD
+// =========================================================================
+var packagesLoaded = false;
+var mappingLoaded = false;
+
+document.getElementById('file-packages').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      DATA = JSON.parse(ev.target.result);
+      packagesLoaded = true;
+      document.getElementById('box-packages').classList.add('loaded');
+      document.getElementById('status-packages').textContent = Object.keys(DATA).length + ' items loaded';
+      checkReady();
+    } catch (err) { alert('Error parsing JSON: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('file-mapping').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      MAPPING = JSON.parse(ev.target.result);
+      mappingLoaded = true;
+      document.getElementById('box-mapping').classList.add('loaded');
+      document.getElementById('status-mapping').textContent = Object.keys(MAPPING).length + ' events mapped';
+      checkReady();
+    } catch (err) { alert('Error parsing mapping JSON: ' + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+function checkReady() {
+  if (packagesLoaded && mappingLoaded) document.getElementById('btn-go').classList.add('visible');
+  else document.getElementById('btn-go').classList.remove('visible');
+}
+
+function launchDashboard() {
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'grid';
+  buildLegend();
+  initDashboard();
+}
+
+// =========================================================================
+// AUTOLOAD (integration with the web app)
+// =========================================================================
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('autoload') !== '1') return;
+
+  Promise.all([
+    fetch('/last_result.json').then(function (r) {
+      if (!r.ok) throw new Error('data not available');
+      return r.json();
+    }),
+    fetch('/event_mapping.json').then(function (r) {
+      if (!r.ok) throw new Error('mapping not available');
+      return r.json();
+    })
+  ]).then(function (res) {
+    DATA = res[0];
+    MAPPING = res[1];
+    packagesLoaded = true;
+    mappingLoaded = true;
+    launchDashboard();
+  }).catch(function (err) {
+    alert('Autoload failed: ' + err.message + '\nUpload the files manually.');
+  });
+})();
+
+// =========================================================================
+// EXPORT JSON
+// =========================================================================
+document.getElementById('btn-export-json').addEventListener('click', function() {
+  if (!DATA || Object.keys(DATA).length === 0) return;
+  var blob = new Blob([JSON.stringify(DATA, null, 2)], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'dashboard_data.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// =========================================================================
+// LEGEND
+// =========================================================================
+function buildLegend() {
+  var body = document.getElementById('legend-body');
+  var html = '';
+  var i = 1;
+  for (var key in MAPPING) {
+    var m = MAPPING[key];
+    var isRouting = key.includes('PRIMARY') || key.includes('SECONDARY') || key.startsWith('UNKNOWN_');
+    var typeClass = isRouting ? 'routing' : 'operational';
+    var typeText = isRouting ? 'RT' : 'OP';
+    var lines = m.processing_lines && m.processing_lines.length > 0 ? m.processing_lines.join(', ') : '-';
+    html += '<tr><td style="color:#8993a4;font-weight:600;">' + i + '</td>' +
+      '<td style="font-family:monospace;font-size:11px;">' + key + '</td>' +
+      '<td style="font-weight:600;">' + m.stage + '</td>' +
+      '<td><span class="tl-type-badge ' + typeClass + '">' + typeText + '</span></td>' +
+      '<td style="font-weight:600;color:#6554C0;">' + lines + '</td></tr>';
+    i++;
+  }
+  body.innerHTML = html;
+}
+
+function toggleLegend() {
+  document.getElementById('legend-overlay').classList.toggle('open');
+}
+
+// =========================================================================
+// DASHBOARD INIT
+// =========================================================================
+function initDashboard() {
+  renderStats();
+  applyFilters();
+}
+
+function renderStats() {
+  var labels = Object.keys(DATA);
+  var beta = 0, alpha = 0, conveyor = 0;
+  labels.forEach(function(l) {
+    var t = getSorterType(DATA[l]);
+    if (t.scan === 'BETA') beta++;
+    else if (t.scan === 'ALPHA') alpha++;
+    else conveyor++;
+  });
+  document.getElementById('header-stats').innerHTML =
+    '<span>Total: <span class="stat-badge">' + labels.length + '</span></span>' +
+    '<span>Beta: <span class="stat-badge beta">' + beta + '</span></span>' +
+    '<span>Alpha: <span class="stat-badge alpha">' + alpha + '</span></span>' +
+    '<span>Conveyor: <span class="stat-badge conveyor">' + conveyor + '</span></span>';
+}
+
+// =========================================================================
+// FILTERS + SEARCH
+// =========================================================================
+function applyFilters() {
+  var search = document.getElementById('search-input').value.toLowerCase();
+  filteredLabels = Object.keys(DATA).filter(function(label) {
+    if (search && !label.toLowerCase().includes(search)) return false;
+    var t = getSorterType(DATA[label]);
+    if (currentFilter === 'beta') return t.scan === 'BETA';
+    if (currentFilter === 'alpha') return t.scan === 'ALPHA';
+    if (currentFilter === 'conveyor') return t.sorter === 'conveyor';
+    return true;
+  });
+  renderList();
+}
+
+document.getElementById('search-input').addEventListener('input', applyFilters);
+document.getElementById('filter-bar').addEventListener('click', function(e) {
+  var btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  applyFilters();
+});
+
+// =========================================================================
+// ITEM LIST
+// =========================================================================
+function renderList() {
+  var list = document.getElementById('pkg-list');
+  document.getElementById('pkg-count').textContent = filteredLabels.length + ' items';
+  var html = '';
+  filteredLabels.forEach(function(label) {
+    var pkg = DATA[label];
+    var t = getSorterType(pkg);
+    var sel = label === selectedLabel ? ' selected' : '';
+    var iconClass, iconEl, typeLabel;
+    if (t.scan === 'BETA') { iconClass = 'beta'; iconEl = '<i class="fa-solid fa-robot"></i>'; typeLabel = 'BETA'; }
+    else if (t.scan === 'ALPHA') { iconClass = 'alpha'; iconEl = '<i class="fa-solid fa-camera"></i>'; typeLabel = 'ALPHA'; }
+    else { iconClass = 'conveyor'; iconEl = '<i class="fa-solid fa-arrows-left-right"></i>'; typeLabel = 'CONVEYOR'; }
+    html += '<div class="pkg-item' + sel + '" data-label="' + label.replace(/"/g, '&quot;') + '">' +
+      '<div class="pkg-icon ' + iconClass + '">' + iconEl + '</div>' +
+      '<div><div class="pkg-label">' + label + '</div>' +
+      '<div class="pkg-meta">' + typeLabel + ' &middot; ' + pkg.events.length + ' events</div></div></div>';
+  });
+  list.innerHTML = html;
+}
+
+function selectItem(label) {
+  selectedLabel = label;
+  renderList();
+  renderTimeline(label);
+}
+
+document.getElementById('pkg-list').addEventListener('click', function(e) {
+  var item = e.target.closest('.pkg-item');
+  if (!item) return;
+  selectItem(item.dataset.label);
+});
+
+// =========================================================================
+// TIMELINE
+// =========================================================================
+function renderTimeline(label) {
+  var pkg = DATA[label];
+  var panel = document.getElementById('center-panel');
+  var t = getSorterType(pkg);
+  var dwell = getDwell(pkg);
+
+  var badges = '';
+  if (t.scan === 'BETA') badges = '<span class="badge beta">&#129302; BETA</span>';
+  else if (t.scan === 'ALPHA') badges = '<span class="badge alpha">&#128247; ALPHA</span>';
+  else badges = '<span class="badge conveyor">&#128094; CONVEYOR</span>';
+
+  var info = '<div class="info-row">' +
+    '<div class="info-card"><div class="info-label">Site</div><div class="info-value">' + (pkg.site_id || '-') + '</div></div>' +
+    '<div class="info-card"><div class="info-label">Deadline</div><div class="info-value">' + (pkg.deadline ? pkg.deadline.substring(5, 16) : '-') + '</div></div>' +
+    '<div class="info-card"><div class="info-label">Router Dwell</div><div class="info-value">' + dwell + '</div></div>' +
+    '<div class="info-card"><div class="info-label">Events</div><div class="info-value">' + pkg.events.length + '</div></div></div>';
+
+  var tl = '<table class="timeline-table">';
+  tl += '<thead><tr><th>#</th><th>Stage</th><th>Timestamp</th><th>Delta</th><th>Type</th><th>Lines</th></tr></thead>';
+  tl += '<tbody>';
+
+  pkg.events.forEach(function(ev, i) {
+    var evType = ev.type;
+    var stageName = getStage(ev.name);
+    var lines = getLines(ev.name);
+
+    var delta = '';
+    if (i > 0) {
+      var ms = new Date(ev.time) - new Date(pkg.events[i - 1].time);
+      delta = formatDelta(ms);
+    }
+
+    tl += '<tr><td class="tl-num">' + (i + 1) + '</td>' +
+      '<td><div class="tl-event-cell"><div class="tl-dot-inline ' + evType + '"></div>' +
+      '<span class="tl-event-name">' + stageName + '</span></div></td>' +
+      '<td class="tl-timestamp">' + ev.time + '</td>' +
+      '<td class="tl-delta-cell">' + delta + '</td>' +
+      '<td><span class="tl-type-badge ' + evType + '">' + (evType === 'routing' ? 'RT' : 'OP') + '</span></td>' +
+      '<td class="tl-lines">' + lines + '</td></tr>';
+  });
+
+  tl += '</tbody></table>';
+  panel.innerHTML = '<div class="pkg-header"><div class="pkg-title">' + label + '</div>' + badges + '</div>' + info + tl;
+}
+</script>
+</body>
+</html>

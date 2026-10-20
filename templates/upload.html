@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Item Tracking — Data Processor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 30px;
+  }
+  h1 { font-size: 22px; margin-bottom: 6px; }
+  .sub { font-size: 13px; color: #8993a4; margin-bottom: 30px; text-align: center; }
+  .upload-area { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .upload-box {
+    background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: 16px; padding: 32px 40px; text-align: center; cursor: pointer;
+    transition: all 0.3s; min-width: 260px;
+  }
+  .upload-box:hover { border-color: #4fc3f7; background: rgba(255,255,255,0.08); }
+  .upload-box i { font-size: 32px; color: #4fc3f7; margin-bottom: 12px; }
+  .upload-box h2 { font-size: 15px; margin-bottom: 6px; }
+  .upload-box p { font-size: 11px; color: #8993a4; }
+  .upload-box input { display: none; }
+  .upload-box.loaded { border-color: #36b37e; background: rgba(54,179,126,0.1); }
+  .upload-box.loaded i { color: #36b37e; }
+  .upload-status { font-size: 11px; margin-top: 8px; color: #36b37e; font-weight: 600; word-break: break-all; }
+  .actions { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  button {
+    padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 700;
+    border: none; cursor: pointer; transition: all 0.2s;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: #0052CC; color: #fff; }
+  .btn-primary:not(:disabled):hover { background: #0747A6; }
+  .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+  .btn-secondary:not(:disabled):hover { background: rgba(255,255,255,0.2); }
+  .msg { margin-top: 20px; font-size: 13px; min-height: 20px; text-align: center; }
+  .msg.error { color: #ff6b6b; }
+  .msg.ok { color: #36b37e; }
+  .spinner { display: none; margin-top: 20px; }
+  .spinner.visible { display: block; }
+  .spinner i { font-size: 22px; color: #4fc3f7; }
+  .footer-note { margin-top: 26px; font-size: 11px; color: #6b7688; max-width: 520px; text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <h1><i class="fa-solid fa-boxes-stacked"></i> Item Tracking — Data Processor</h1>
+  <p class="sub">Upload the two exported files (Excel or CSV). The pipeline merges and generates the dashboard JSON.</p>
+
+  <div class="upload-area">
+    <label class="upload-box" id="box-ops" for="file-ops">
+      <i class="fa-solid fa-file-excel"></i>
+      <h2>Operational Events</h2>
+      <p>Main item flow data (Excel/CSV)</p>
+      <input type="file" id="file-ops" accept=".xlsx,.xls,.csv">
+      <div class="upload-status" id="status-ops"></div>
+    </label>
+
+    <label class="upload-box" id="box-routing" for="file-routing">
+      <i class="fa-solid fa-file-excel"></i>
+      <h2>Routing Events</h2>
+      <p>Automated routing data (Excel/CSV)</p>
+      <input type="file" id="file-routing" accept=".xlsx,.xls,.csv">
+      <div class="upload-status" id="status-routing"></div>
+    </label>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" id="btn-generate" disabled>
+      <i class="fa-solid fa-gears"></i> Generate JSON
+    </button>
+    <button class="btn-secondary" id="btn-download" disabled>
+      <i class="fa-solid fa-download"></i> Download JSON
+    </button>
+    <button class="btn-secondary" id="btn-dashboard" disabled>
+      <i class="fa-solid fa-chart-line"></i> Open Dashboard
+    </button>
+  </div>
+
+  <div class="spinner" id="spinner"><i class="fa-solid fa-spinner fa-spin"></i> Processing...</div>
+  <div class="msg" id="msg"></div>
+
+  <p class="footer-note">
+    After generation you can download <code>dashboard_data.json</code> to your PC,
+    or open the dashboard directly with the data pre-loaded.
+    You can also export the JSON and feed it to an AI for further analysis.
+  </p>
+
+<script>
+  var fOps = document.getElementById('file-ops');
+  var fRouting = document.getElementById('file-routing');
+  var btnGen = document.getElementById('btn-generate');
+  var btnDl = document.getElementById('btn-download');
+  var btnDash = document.getElementById('btn-dashboard');
+  var msg = document.getElementById('msg');
+  var spinner = document.getElementById('spinner');
+  var generated = false;
+
+  function refreshGen() {
+    btnGen.disabled = !(fOps.files.length && fRouting.files.length);
+  }
+
+  fOps.addEventListener('change', function () {
+    if (fOps.files.length) {
+      document.getElementById('box-ops').classList.add('loaded');
+      document.getElementById('status-ops').textContent = fOps.files[0].name;
+    }
+    generated = false; btnDl.disabled = true; btnDash.disabled = true;
+    refreshGen();
+  });
+
+  fRouting.addEventListener('change', function () {
+    if (fRouting.files.length) {
+      document.getElementById('box-routing').classList.add('loaded');
+      document.getElementById('status-routing').textContent = fRouting.files[0].name;
+    }
+    generated = false; btnDl.disabled = true; btnDash.disabled = true;
+    refreshGen();
+  });
+
+  function buildFormData() {
+    var fd = new FormData();
+    fd.append('operational', fOps.files[0]);
+    fd.append('routing', fRouting.files[0]);
+    return fd;
+  }
+
+  function setMsg(text, cls) {
+    msg.textContent = text;
+    msg.className = 'msg' + (cls ? ' ' + cls : '');
+  }
+
+  btnGen.addEventListener('click', function () {
+    setMsg('', '');
+    spinner.classList.add('visible');
+    btnGen.disabled = true;
+
+    fetch('/process', { method: 'POST', body: buildFormData() })
+      .then(function (resp) {
+        return resp.json().then(function (body) {
+          return { ok: resp.ok, body: body };
+        });
+      })
+      .then(function (res) {
+        spinner.classList.remove('visible');
+        refreshGen();
+        if (!res.ok) {
+          setMsg(res.body.error || 'Error during processing.', 'error');
+          return;
+        }
+        generated = true;
+        btnDl.disabled = false;
+        btnDash.disabled = false;
+        var count = Object.keys(res.body).length;
+        setMsg('JSON generated: ' + count + ' items. Download it or open the dashboard.', 'ok');
+      })
+      .catch(function (err) {
+        spinner.classList.remove('visible');
+        refreshGen();
+        setMsg('Network error: ' + err, 'error');
+      });
+  });
+
+  btnDl.addEventListener('click', function () {
+    var fd = buildFormData();
+    fetch('/process?download=1', { method: 'POST', body: fd })
+      .then(function (resp) { return resp.blob(); })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'dashboard_data.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      })
+      .catch(function (err) { setMsg('Download error: ' + err, 'error'); });
+  });
+
+  btnDash.addEventListener('click', function () {
+    if (!generated) return;
+    window.open('/dashboard?autoload=1', '_blank');
+  });
+</script>
+</body>
+</html>

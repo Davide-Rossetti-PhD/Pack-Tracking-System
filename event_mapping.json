@@ -1,0 +1,78 @@
+{
+  "inbound_unload_time_local": {
+    "stage": "Inbound unload",
+    "processing_lines": []
+  },
+  "sorter_induct_time_local": {
+    "stage": "Sorter induction",
+    "processing_lines": ["L01", "L02", "L03", "L04", "L05"]
+  },
+  "PRIMARY_INDUCTED_time_local": {
+    "stage": "Router Alpha induct",
+    "processing_lines": ["L06", "L07"]
+  },
+  "SECONDARY_INDUCTED_time_local": {
+    "stage": "Router Beta induct",
+    "processing_lines": ["L08", "L09"]
+  },
+  "PRIMARY_ROUTED_time_local": {
+    "stage": "Router Alpha route",
+    "processing_lines": ["L06", "L07"]
+  },
+  "SECONDARY_ROUTED_time_local": {
+    "stage": "Router Beta route",
+    "processing_lines": ["L08", "L09"]
+  },
+  "UNKNOWN_ROUTED_time_local": {
+    "stage": "Router route (unknown)",
+    "processing_lines": ["L05"]
+  },
+  "PRIMARY_REROUTED_time_local": {
+    "stage": "Router Alpha re-route",
+    "processing_lines": ["L06", "L07"]
+  },
+  "SECONDARY_REROUTED_time_local": {
+    "stage": "Router Beta re-route",
+    "processing_lines": ["L08", "L09"]
+  },
+  "UNKNOWN_REROUTED_time_local": {
+    "stage": "Router re-route (unknown)",
+    "processing_lines": ["L05"]
+  },
+  "SECONDARY_RECIRCULATED_time_local": {
+    "stage": "Router Beta recirculation",
+    "processing_lines": ["L08", "L09"]
+  },
+  "PRIMARY_COMPLETED_time_local": {
+    "stage": "Router Alpha completed",
+    "processing_lines": ["L06", "L07"]
+  },
+  "SECONDARY_COMPLETED_time_local": {
+    "stage": "Router Beta completed",
+    "processing_lines": ["L08", "L09"]
+  },
+  "sorter_divert_time_local": {
+    "stage": "Sorter divert",
+    "processing_lines": []
+  },
+  "secondary_scan_time_local": {
+    "stage": "Secondary scan",
+    "processing_lines": []
+  },
+  "stack_time_local": {
+    "stage": "Stacking",
+    "processing_lines": []
+  },
+  "outbound_staging_time_local": {
+    "stage": "Outbound staging",
+    "processing_lines": []
+  },
+  "loaded_time_local": {
+    "stage": "Trailer loading",
+    "processing_lines": []
+  },
+  "depart_time_local": {
+    "stage": "Trailer departure",
+    "processing_lines": []
+  }
+}
